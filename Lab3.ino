@@ -143,15 +143,14 @@ void loop() {
     /***********---LCD PRINTING----***********/
     String OnOff = (fanOn) ? "ON" : "OFF";
     String Dir = (direction == 0) ? "C" : "CC";
-    String Speed = getSpeedString(Speeds[speedLevel]);
+    String Speed = getSpeedString(speedLevel);
     String Line1 =  RTC_Time;
     String Line2 = OnOff + " | " + Dir + " | " + Speed;
     LCD.setCursor(0, 0);
-    LCD.print("                "); //clear line
     LCD.print(Line1);
     LCD.setCursor(0, 1);
-    LCD.print("                "); //clear line
     LCD.print(Line2);
+    LCD.print("  ");
 
 }
 
