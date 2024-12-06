@@ -16,6 +16,7 @@ const int BUTTON = 22; /*Button Pin*/
 /*--------RTC Clock-----------*/
 String RTC_Time = "00:00:00";
 RTC_DS1307 RTC;
+long hour = 0, minute = 0, second = 0;
 /*--------IR Receiver-----------*/
 IRrecv IR(26); /*IR Receiver is on PIN 26*/
 
@@ -44,7 +45,17 @@ unsigned long microSeconds;
 ArduinoFFT<double> FFT = ArduinoFFT<double>(vReal, vImag, SAMPLES, SAMPLING_FREQUENCY);
 
 void setup() {
-
+    cli();//stop interrupts
+    /*--------Timer 1 Setup------------*/
+    //1 Hz
+    TCCR1A = 0;
+    TCCR1B = 0;
+    TCNT1  = 0;
+    OCR1A = 15624;
+    TCCR1B |= (1 << WGM12);
+    TCCR1B |= (1 << CS12) | (1 << CS10);  
+    TIMSK1 |= (1 << OCIE1A);
+    sei();//allow interrupts
     /*-------Setup LED------*/
     LCD.begin(16, 2);
     /*----Setup Motor Pins-----*/
@@ -64,10 +75,34 @@ void setup() {
      /*----Setup RTC-----*/
     RTC.begin();
     Serial.println(F("RTC ready"));
+    DateTime Current = RTC.now();
+    hour = Current.hour();
+    minute = Current.minute();
+    second = Current.second();
 
    /*---Setup Microphone----*/
     pinMode(MICROPHONE, INPUT); 
     samplingPeriod = round(1000000 * (1.0 / SAMPLING_FREQUENCY));
+}
+
+ISR(TIMER1_COMPA_vect) { 
+
+    if(second <= 59) {
+      second++;
+    }
+    
+    if(second >= 60) {
+      second = 0;
+      minute++;
+    }
+
+    if(minute >= 60) {
+      minute = 0;
+      hour++;
+    }
+    if(hour >= 24) {
+       hour = 0;
+    }
 }
 
 void increaseFanSpeed() {
@@ -133,10 +168,9 @@ void loop() {
     }
 
     /*----RTC-----*/
-    DateTime Current = RTC.now();
-    String Hour = (Current.hour() < 10) ? ("0" + String(Current.hour())) : String(Current.hour());
-    String Minute = (Current.minute() < 10) ? ("0" + String(Current.minute())) : String(Current.minute());
-    String Second = (Current.second() < 10) ? ("0" + String(Current.second())) : String(Current.second());
+    String Hour = (hour < 10) ? ("0" + String(hour)) : String(hour);
+    String Minute = (minute < 10) ? ("0" + String(minute)) : String(minute);
+    String Second = (second < 10) ? ("0" + String(second)) : String(second);
     RTC_Time = (Hour + ":" + Minute + ":" + Second);
 
 
@@ -191,6 +225,11 @@ void translateIR(unsigned long value) {
               int Second = (String(TimeEntry[4]) + String(TimeEntry[5])).toInt();
 
               RTC.adjust(DateTime(Current.year(), Current.month(), Current.day(), Hour, Minute, Second));
+
+              Current = RTC.now();
+              hour = Current.hour();
+              minute = Current.minute();
+              second = Current.second();
 
               entryPos = 0;
               timeEntry = false;
